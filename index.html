@@ -1,0 +1,3428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TWO BINS, ONE BAG — Realistic Waste Segregation Simulator (CP5 Prototype)</title>
+  <!-- Google Fonts: Inter & Plus Jakarta Sans for clean academic/industrial UI -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet" />
+  <!-- Chart.js CDN for Admin Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* ==========================================================================
+       1. DESIGN TOKENS & BASE SYSTEM
+       ========================================================================== */
+    :root {
+      --bg-app: #f1f5f9;
+      --bg-surface: #ffffff;
+      --bg-subtle: #f8fafc;
+      --border-light: #e2e8f0;
+      --border-medium: #cbd5e1;
+
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+
+      /* Municipal Environmental Palette */
+      --green-900: #052e16;
+      --green-800: #14532d;
+      --green-700: #15803d;
+      --green-600: #16a34a;
+      --green-500: #22c55e;
+      --green-100: #dcfce7;
+      --green-50: #f0fdf4;
+
+      --blue-900: #172554;
+      --blue-800: #1e3a8a;
+      --blue-700: #1d4ed8;
+      --blue-600: #2563eb;
+      --blue-500: #3b82f6;
+      --blue-100: #dbeafe;
+      --blue-50: #eff6ff;
+
+      --red-600: #dc2626;
+      --red-100: #fee2e2;
+      --red-50: #fef2f2;
+      --amber-600: #d97706;
+      --amber-100: #fef3c7;
+
+      --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+      --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+      --shadow-lg: 0 12px 24px -4px rgba(15, 23, 42, 0.12), 0 4px 8px -2px rgba(15, 23, 42, 0.06);
+      --shadow-xl: 0 20px 35px -8px rgba(15, 23, 42, 0.18);
+
+      --radius-sm: 8px;
+      --radius-md: 12px;
+      --radius-lg: 16px;
+      --radius-xl: 22px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-app);
+      color: var(--text-primary);
+      line-height: 1.5;
+      min-height: 100vh;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3, h4, .brand-title {
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    }
+
+    button, input, select {
+      font-family: inherit;
+    }
+
+    /* ==========================================================================
+       2. APP SHELL & NAVIGATION SIDEBAR / TOPBAR
+       ========================================================================== */
+    .app-shell {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .sidebar {
+      width: 268px;
+      background: #0f172a;
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 24px 18px;
+      flex-shrink: 0;
+      border-right: 1px solid #1e293b;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      z-index: 40;
+    }
+
+    .brand-block {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 4px 8px 20px;
+      border-bottom: 1px solid #1e293b;
+      margin-bottom: 20px;
+    }
+
+    .brand-emblem {
+      width: 42px;
+      height: 42px;
+      border-radius: 11px;
+      background: linear-gradient(135deg, var(--green-600) 0%, var(--blue-600) 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35);
+    }
+
+    .brand-title {
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      line-height: 1.2;
+      color: #ffffff;
+    }
+
+    .brand-subtitle {
+      font-size: 0.72rem;
+      color: #94a3b8;
+      font-weight: 500;
+      margin-top: 2px;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    .nav-section-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #64748b;
+      font-weight: 700;
+      padding: 0 12px;
+      margin-bottom: 8px;
+    }
+
+    .nav-menu {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: #cbd5e1;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      text-align: left;
+    }
+
+    .nav-btn:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: #ffffff;
+    }
+
+    .nav-btn.active {
+      background: linear-gradient(90deg, rgba(22, 163, 74, 0.22), rgba(37, 99, 235, 0.22));
+      border-color: rgba(255, 255, 255, 0.14);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .nav-btn svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-footer {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .prototype-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: #4ade80;
+      background: rgba(22, 163, 74, 0.16);
+      border: 1px solid rgba(74, 222, 128, 0.3);
+      padding: 3px 9px;
+      border-radius: 999px;
+      margin-bottom: 8px;
+    }
+
+    .sidebar-footer p {
+      font-size: 0.76rem;
+      color: #94a3b8;
+      line-height: 1.45;
+    }
+
+    .main-content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .topbar {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border-light);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      position: sticky;
+      top: 0;
+      z-index: 30;
+    }
+
+    .topbar-left h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.02em;
+    }
+
+    .topbar-left p {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+    }
+
+    .topbar-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 9px 16px;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: all 0.16s ease;
+      white-space: nowrap;
+    }
+
+    .btn:active {
+      transform: translateY(1px);
+    }
+
+    .btn-outline {
+      background: var(--bg-surface);
+      border-color: var(--border-medium);
+      color: var(--text-primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-outline:hover {
+      background: var(--bg-subtle);
+      border-color: #94a3b8;
+    }
+
+    .btn-primary {
+      background: var(--blue-700);
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(29, 78, 216, 0.25);
+    }
+
+    .btn-primary:hover {
+      background: var(--blue-800);
+    }
+
+    .btn-green {
+      background: var(--green-700);
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(21, 128, 61, 0.25);
+    }
+
+    .btn-green:hover {
+      background: var(--green-800);
+    }
+
+    .btn-danger {
+      background: var(--red-600);
+      color: #ffffff;
+    }
+
+    .btn-danger:hover {
+      background: #b91c1c;
+    }
+
+    .view-container {
+      padding: 24px 28px 40px;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* ==========================================================================
+       3. SIMULATION CONTROLS & LIVE HUD
+       ========================================================================== */
+    .session-bar {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .session-controls-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+    }
+
+    .field-inline {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .field-inline label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-secondary);
+    }
+
+    .input-compact {
+      padding: 7px 12px;
+      border-radius: 8px;
+      border: 1px solid var(--border-medium);
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      background: var(--bg-subtle);
+      width: 138px;
+    }
+
+    .difficulty-pills {
+      display: inline-flex;
+      background: var(--bg-app);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border-light);
+    }
+
+    .diff-btn {
+      padding: 6px 14px;
+      border-radius: 7px;
+      border: none;
+      background: transparent;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .diff-btn.active {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .hud-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .hud-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .hud-label {
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+
+    .hud-value-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .hud-value {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .hud-sub {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      background: var(--bg-app);
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 8px;
+      border: 1px solid var(--border-light);
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--green-600), var(--blue-600));
+      border-radius: 999px;
+      transition: width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* Feedback Banner */
+    .feedback-banner {
+      border-radius: var(--radius-md);
+      padding: 13px 18px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: 1px solid var(--border-light);
+      background: var(--bg-surface);
+      transition: all 0.2s ease;
+    }
+
+    .feedback-banner.neutral {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      color: var(--text-secondary);
+    }
+
+    .feedback-banner.correct {
+      background: var(--green-50);
+      border-color: #86efac;
+      color: var(--green-900);
+    }
+
+    .feedback-banner.incorrect {
+      background: var(--red-50);
+      border-color: #fca5a5;
+      color: #7f1d1d;
+    }
+
+    .feedback-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* ==========================================================================
+       4. ARENA: PHOTOREALISTIC WASTE SPECIMEN CARD & 3D MUNICIPAL DUSTBINS
+       ========================================================================== */
+    .arena-workspace {
+      display: grid;
+      grid-template-columns: 360px 1fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    /* Specimen Inspection & Drag Deck */
+    .specimen-deck {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-xl);
+      padding: 20px;
+      box-shadow: var(--shadow-md);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .deck-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .deck-tag {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--blue-700);
+      background: var(--blue-50);
+      border: 1px solid var(--blue-100);
+      padding: 4px 10px;
+      border-radius: 999px;
+    }
+
+    .deck-counter {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .waste-card-stage {
+      position: relative;
+      min-height: 315px;
+      background: radial-gradient(circle at 50% 42%, #ffffff 0%, #e2e8f0 100%);
+      border: 2px dashed #cbd5e1;
+      border-radius: var(--radius-lg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+
+    /* Draggable Realistic Photo Card */
+    .waste-item-card {
+      width: 100%;
+      max-width: 280px;
+      background: #ffffff;
+      border-radius: 16px;
+      border: 1px solid #cbd5e1;
+      box-shadow: 0 14px 28px -6px rgba(15, 23, 42, 0.2), 0 4px 10px -2px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+      transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, opacity 0.25s ease;
+      position: relative;
+      z-index: 10;
+    }
+
+    .waste-item-card:hover {
+      transform: translateY(-4px) scale(1.015);
+      box-shadow: 0 20px 36px -8px rgba(15, 23, 42, 0.26);
+    }
+
+    .waste-item-card:active,
+    .waste-item-card.dragging {
+      cursor: grabbing;
+      transform: scale(1.04) rotate(1.5deg);
+      box-shadow: 0 25px 45px -10px rgba(15, 23, 42, 0.35);
+    }
+
+    .waste-item-card.selected-for-tap {
+      outline: 3px solid var(--blue-600);
+      outline-offset: 2px;
+    }
+
+    .waste-photo-frame {
+      width: 100%;
+      height: 196px;
+      background: #f1f5f9;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .waste-photo-frame img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+      pointer-events: none;
+      filter: contrast(1.03) saturate(1.05);
+    }
+
+    .photo-specimen-badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(15, 23, 42, 0.78);
+      backdrop-filter: blur(4px);
+      color: #f8fafc;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+
+    .waste-card-meta {
+      padding: 13px 15px;
+      background: #ffffff;
+      border-top: 1px solid #f1f5f9;
+    }
+
+    .waste-item-title {
+      font-size: 1.02rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      margin-bottom: 3px;
+    }
+
+    .waste-item-desc {
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+      line-height: 1.38;
+    }
+
+    .easy-hint-pill {
+      margin-top: 8px;
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 6px;
+      background: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
+
+    .deck-instructions {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      text-align: center;
+      background: var(--bg-subtle);
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border-light);
+    }
+
+    /* Quick Action Buttons for Accessibility & Mobile */
+    .quick-sort-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    /* ==========================================================================
+       5. REALISTIC 3D MUNICIPAL DUSTBINS (GREEN & BLUE)
+       ========================================================================== */
+    .bins-stage {
+      background: linear-gradient(180deg, #ffffff 0%, #e2e8f0 100%);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-xl);
+      padding: 26px 24px 28px;
+      box-shadow: var(--shadow-md);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Subtle concrete floor horizon line for 3D grounding */
+    .bins-stage::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 82px;
+      background: linear-gradient(180deg, #cbd5e1 0%, #94a3b8 100%);
+      border-top: 1px solid #94a3b8;
+      z-index: 1;
+    }
+
+    .bins-stage-header {
+      text-align: center;
+      position: relative;
+      z-index: 2;
+      margin-bottom: 12px;
+    }
+
+    .bins-stage-header h2 {
+      font-size: 1.05rem;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .bins-stage-header p {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+    }
+
+    .bins-pair {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+      align-items: end;
+      justify-items: center;
+      position: relative;
+      z-index: 5;
+      padding-top: 16px;
+    }
+
+    .bin-dropzone {
+      width: 100%;
+      max-width: 285px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+      position: relative;
+      padding: 10px 8px 4px;
+      border-radius: 20px;
+    }
+
+    .bin-dropzone:hover {
+      transform: translateY(-4px);
+    }
+
+    .bin-dropzone.drag-over {
+      transform: translateY(-8px) scale(1.03);
+    }
+
+    /* 3D Municipal Lid Assembly */
+    .municipal-lid-assembly {
+      width: 92%;
+      position: relative;
+      z-index: 6;
+      transform-origin: left bottom;
+      transition: transform 0.28s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .bin-dropzone.drag-over .municipal-lid-assembly,
+    .bin-dropzone.bin-receiving .municipal-lid-assembly {
+      transform: rotate(-22deg) translateY(-10px);
+    }
+
+    .lid-handle {
+      width: 68px;
+      height: 11px;
+      margin: 0 auto;
+      border-radius: 6px 6px 0 0;
+      box-shadow: inset 0 2px 3px rgba(255, 255, 255, 0.35);
+    }
+
+    .lid-dome {
+      height: 22px;
+      border-radius: 14px 14px 4px 4px;
+      position: relative;
+      box-shadow:
+        inset 0 4px 8px rgba(255, 255, 255, 0.32),
+        inset 0 -4px 8px rgba(0, 0, 0, 0.35),
+        0 6px 12px rgba(0, 0, 0, 0.25);
+    }
+
+    .lid-lip {
+      height: 12px;
+      width: 104%;
+      margin-left: -2%;
+      border-radius: 5px;
+      box-shadow:
+        inset 0 2px 3px rgba(255, 255, 255, 0.3),
+        0 5px 10px rgba(0, 0, 0, 0.32);
+    }
+
+    /* Dark interior mouth visible when lid lifts */
+    .bin-mouth-cavity {
+      width: 84%;
+      height: 12px;
+      background: #090d16;
+      border-radius: 50%;
+      margin-top: -6px;
+      margin-bottom: -6px;
+      z-index: 4;
+      box-shadow: inset 0 4px 8px #000000;
+    }
+
+    /* 3D Tapered Municipal Body */
+    .municipal-body {
+      width: 86%;
+      height: 255px;
+      position: relative;
+      z-index: 5;
+      border-radius: 8px 8px 22px 22px;
+      clip-path: polygon(0% 0%, 100% 0%, 93% 100%, 7% 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 14px 20px;
+      box-shadow:
+        inset 18px 0 28px rgba(255, 255, 255, 0.22),
+        inset -22px 0 32px rgba(0, 0, 0, 0.38),
+        inset 0 12px 18px rgba(0, 0, 0, 0.35);
+    }
+
+    /* Vertical structural reinforcement ribs on municipal bin */
+    .bin-ribs {
+      width: 85%;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .bin-rib {
+      flex: 1;
+      height: 18px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.16);
+      box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.22);
+    }
+
+    /* Municipal Stencil Decal */
+    .bin-decal {
+      width: 86%;
+      background: rgba(255, 255, 255, 0.96);
+      border-radius: 12px;
+      padding: 12px 10px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25), inset 0 1px 0 #ffffff;
+      border: 2px solid rgba(255, 255, 255, 0.8);
+    }
+
+    .bin-symbol-circle {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      margin: 0 auto 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .bin-decal-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 800;
+      letter-spacing: 0.03em;
+      line-height: 1.15;
+    }
+
+    .bin-decal-sub {
+      font-size: 0.68rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #475569;
+      margin-top: 3px;
+    }
+
+    .bin-count-pill {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.95);
+      background: rgba(0, 0, 0, 0.28);
+      padding: 4px 12px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    /* Heavy-Duty Caster Wheels & Floor Shadow */
+    .bin-base-wheels {
+      width: 76%;
+      display: flex;
+      justify-content: space-between;
+      margin-top: -6px;
+      z-index: 4;
+      padding: 0 10px;
+    }
+
+    .wheel {
+      width: 24px;
+      height: 26px;
+      background: radial-gradient(circle at 35% 35%, #475569, #0f172a 75%);
+      border-radius: 6px 6px 10px 10px;
+      border: 2px solid #1e293b;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.45);
+    }
+
+    .bin-floor-shadow {
+      width: 84%;
+      height: 16px;
+      background: radial-gradient(ellipse at center, rgba(15, 23, 42, 0.52) 0%, rgba(15, 23, 42, 0) 74%);
+      margin-top: -4px;
+      z-index: 3;
+    }
+
+    /* GREEN BIN COLORING */
+    .bin-green .lid-handle,
+    .bin-green .lid-dome {
+      background: linear-gradient(90deg, #14532d 0%, #22c55e 32%, #16a34a 68%, #052e16 100%);
+    }
+
+    .bin-green .lid-lip {
+      background: linear-gradient(90deg, #052e16 0%, #16a34a 35%, #15803d 70%, #052e16 100%);
+    }
+
+    .bin-green .municipal-body {
+      background: linear-gradient(90deg, #14532d 0%, #22c55e 26%, #16a34a 62%, #052e16 100%);
+    }
+
+    .bin-green .bin-symbol-circle {
+      background: var(--green-100);
+      color: var(--green-700);
+      border: 2px solid var(--green-600);
+    }
+
+    .bin-green .bin-decal-title {
+      color: var(--green-800);
+    }
+
+    .bin-green.drag-over {
+      box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.45);
+      background: rgba(34, 197, 94, 0.08);
+    }
+
+    /* BLUE BIN COLORING */
+    .bin-blue .lid-handle,
+    .bin-blue .lid-dome {
+      background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 32%, #2563eb 68%, #172554 100%);
+    }
+
+    .bin-blue .lid-lip {
+      background: linear-gradient(90deg, #172554 0%, #2563eb 35%, #1d4ed8 70%, #172554 100%);
+    }
+
+    .bin-blue .municipal-body {
+      background: linear-gradient(90deg, #1e3a8a 0%, #3b82f6 26%, #2563eb 62%, #172554 100%);
+    }
+
+    .bin-blue .bin-symbol-circle {
+      background: var(--blue-100);
+      color: var(--blue-700);
+      border: 2px solid var(--blue-600);
+    }
+
+    .bin-blue .bin-decal-title {
+      color: var(--blue-800);
+    }
+
+    .bin-blue.drag-over {
+      box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.45);
+      background: rgba(59, 130, 246, 0.08);
+    }
+
+    /* Flying Clone Animation into Selected Bin */
+    .flying-waste-clone {
+      position: fixed;
+      z-index: 9999;
+      pointer-events: none;
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 20px 35px rgba(0, 0, 0, 0.35);
+      transition: all 0.46s cubic-bezier(0.32, 0, 0.24, 1);
+    }
+
+    /* ==========================================================================
+       6. ADMIN ANALYTICS DASHBOARD
+       ========================================================================== */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 14px;
+      margin-bottom: 22px;
+    }
+
+    .kpi-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+      border-top: 3px solid var(--blue-600);
+    }
+
+    .kpi-card.kpi-green {
+      border-top-color: var(--green-600);
+    }
+
+    .kpi-card.kpi-red {
+      border-top-color: var(--red-600);
+    }
+
+    .kpi-title {
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    .kpi-number {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .kpi-caption {
+      font-size: 0.73rem;
+      color: var(--text-secondary);
+      margin-top: 4px;
+    }
+
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    .panel-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .panel-header h3 {
+      font-size: 0.98rem;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .panel-header span {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .chart-canvas-wrap {
+      position: relative;
+      height: 255px;
+      width: 100%;
+    }
+
+    /* Misclassified Ranking List */
+    .misclassified-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      max-height: 255px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+
+    .mis-item {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .mis-item-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.83rem;
+      font-weight: 600;
+    }
+
+    .mis-item-name {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-primary);
+    }
+
+    .cat-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .cat-dot.wet { background: var(--green-600); }
+    .cat-dot.dry { background: var(--blue-600); }
+
+    .mis-bar-bg {
+      width: 100%;
+      height: 8px;
+      background: var(--bg-app);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .mis-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #f97316, #dc2626);
+      border-radius: 999px;
+    }
+
+    /* Data Table Controls & Table */
+    .table-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .table-filters {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .search-input, .select-filter {
+      padding: 8px 12px;
+      border-radius: 9px;
+      border: 1px solid var(--border-medium);
+      font-size: 0.84rem;
+      background: var(--bg-subtle);
+      color: var(--text-primary);
+    }
+
+    .search-input {
+      min-width: 220px;
+    }
+
+    .table-responsive {
+      width: 100%;
+      overflow-x: auto;
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.84rem;
+    }
+
+    thead {
+      background: var(--bg-subtle);
+      border-bottom: 1px solid var(--border-light);
+    }
+
+    th {
+      padding: 12px 14px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border-light);
+      color: var(--text-primary);
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+
+    tbody tr:hover {
+      background: #f8fafc;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 700;
+    }
+
+    .badge-completed {
+      background: var(--green-100);
+      color: var(--green-800);
+    }
+
+    .badge-partial {
+      background: var(--amber-100);
+      color: #92400e;
+    }
+
+    .badge-diff {
+      background: var(--blue-50);
+      color: var(--blue-800);
+      border: 1px solid var(--blue-100);
+    }
+
+    .action-icon-btn {
+      padding: 6px 10px;
+      border-radius: 7px;
+      border: 1px solid var(--border-medium);
+      background: #ffffff;
+      color: var(--text-primary);
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+      margin-right: 4px;
+    }
+
+    .action-icon-btn:hover {
+      background: var(--bg-app);
+    }
+
+    .action-icon-btn.del:hover {
+      background: var(--red-50);
+      border-color: #fca5a5;
+      color: var(--red-600);
+    }
+
+    /* ==========================================================================
+       7. MODALS (INSTRUCTIONS, SESSION SUMMARY, PARTICIPANT INSPECTOR, CONFIRM)
+       ========================================================================== */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.62);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 100;
+    }
+
+    .modal-card {
+      background: var(--bg-surface);
+      border-radius: var(--radius-xl);
+      max-width: 680px;
+      width: 100%;
+      max-height: 88vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow-xl);
+      border: 1px solid var(--border-light);
+      padding: 26px;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-light);
+      margin-bottom: 18px;
+    }
+
+    .modal-header h2 {
+      font-size: 1.2rem;
+      font-weight: 800;
+    }
+
+    .close-modal-btn {
+      background: var(--bg-app);
+      border: 1px solid var(--border-light);
+      width: 34px;
+      height: 34px;
+      border-radius: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+
+    .protocol-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 16px 0;
+    }
+
+    .protocol-box {
+      border-radius: 12px;
+      padding: 15px;
+      border: 1px solid var(--border-light);
+    }
+
+    .protocol-box.green {
+      background: var(--green-50);
+      border-color: #bbf7d0;
+    }
+
+    .protocol-box.blue {
+      background: var(--blue-50);
+      border-color: #bfdbfe;
+    }
+
+    .protocol-box h4 {
+      font-size: 0.92rem;
+      font-weight: 800;
+      margin-bottom: 6px;
+    }
+
+    .protocol-box ul {
+      padding-left: 18px;
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    .summary-stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+
+    .summary-stat {
+      background: var(--bg-subtle);
+      border: 1px solid var(--border-light);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: center;
+    }
+
+    .summary-stat strong {
+      display: block;
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: var(--text-primary);
+    }
+
+    .summary-stat span {
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .breakdown-list {
+      max-height: 260px;
+      overflow-y: auto;
+      border: 1px solid var(--border-light);
+      border-radius: 10px;
+      divide-y: 1px solid var(--border-light);
+      margin-bottom: 18px;
+    }
+
+    .breakdown-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 9px 12px;
+      border-bottom: 1px solid var(--border-light);
+      font-size: 0.82rem;
+    }
+
+    .breakdown-row:last-child {
+      border-bottom: none;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 16px;
+    }
+
+    /* ==========================================================================
+       8. RESPONSIVE BREAKPOINTS (LAPTOP, TABLET, MOBILE)
+       ========================================================================== */
+    @media (max-width: 1240px) {
+      .kpi-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+      .arena-workspace {
+        grid-template-columns: 320px 1fr;
+      }
+    }
+
+    @media (max-width: 980px) {
+      .app-shell {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: static;
+        flex-direction: row;
+        align-items: center;
+        padding: 12px 16px;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+      .brand-block {
+        border-bottom: none;
+        padding: 0;
+        margin-bottom: 0;
+      }
+      .nav-section-label,
+      .sidebar-footer {
+        display: none;
+      }
+      .nav-menu {
+        flex-direction: row;
+        flex-wrap: wrap;
+      }
+      .nav-btn {
+        width: auto;
+        padding: 8px 12px;
+        font-size: 0.82rem;
+      }
+      .arena-workspace {
+        grid-template-columns: 1fr;
+      }
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .view-container {
+        padding: 16px;
+      }
+      .topbar {
+        padding: 12px 16px;
+      }
+      .hud-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .kpi-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .bins-pair {
+        gap: 12px;
+      }
+      .municipal-body {
+        height: 210px;
+      }
+      .bin-decal-title {
+        font-size: 0.88rem;
+      }
+      .protocol-grid,
+      .summary-stats-row {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- ======================================================================
+         SIDEBAR NAVIGATION
+         ====================================================================== -->
+    <aside class="sidebar">
+      <div>
+        <div class="brand-block">
+          <div class="brand-emblem" aria-hidden="true">
+            <!-- Clean geometric recycling/segregation SVG icon -->
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5" />
+              <path d="M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12" />
+              <path d="m14 16-3 3 3 3" />
+              <path d="M8.293 13.596 7.196 9.5 3.1 10.598" />
+              <path d="m9.344 5.811 1.093-1.892A1.83 1.83 0 0 1 11.985 3a1.784 1.784 0 0 1 1.546.888l3.943 6.843" />
+              <path d="m13.378 9.633 4.096 1.098 1.097-4.096" />
+            </svg>
+          </div>
+          <div>
+            <div class="brand-title">TWO BINS, ONE BAG</div>
+            <div class="brand-subtitle">Municipal Segregation Lab</div>
+          </div>
+        </div>
+
+        <div class="nav-section-label">Workspace Modules</div>
+        <nav class="nav-menu" aria-label="Primary Navigation">
+          <button type="button" class="nav-btn active" id="nav-sim-btn" onclick="switchView('simulation')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+              <line x1="8" y1="21" x2="16" y2="21"></line>
+              <line x1="12" y1="17" x2="12" y2="21"></line>
+            </svg>
+            <span>Simulation Arena</span>
+          </button>
+
+          <button type="button" class="nav-btn" id="nav-admin-btn" onclick="switchView('admin')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="18" y1="20" x2="18" y2="10"></line>
+              <line x1="12" y1="20" x2="12" y2="4"></line>
+              <line x1="6" y1="20" x2="6" y2="14"></line>
+            </svg>
+            <span>Admin Dashboard</span>
+          </button>
+
+          <button type="button" class="nav-btn" onclick="openInstructionsModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span>Segregation Protocol</span>
+          </button>
+        </nav>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="prototype-badge">DESIGN THINKING CP5</div>
+        <p>Source-segregation competency assessment module. Evaluates independent Wet vs. Dry waste classification accuracy.</p>
+      </div>
+    </aside>
+
+    <!-- ======================================================================
+         MAIN CONTENT AREA
+         ====================================================================== -->
+    <div class="main-content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 id="page-heading">Waste Segregation Training Simulator</h1>
+          <p id="page-subheading">Inspect each photographic waste specimen and deposit it into the designated municipal bin.</p>
+        </div>
+        <div class="topbar-actions">
+          <button type="button" class="btn btn-outline" onclick="openInstructionsModal()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+            </svg>
+            <span>First-Time Guide</span>
+          </button>
+          <button type="button" class="btn btn-primary" id="topbar-restart-btn" onclick="restartSimulation()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+            </svg>
+            <span>Restart Session</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- ====================================================================
+           VIEW 1: INTERACTIVE SIMULATION ARENA
+           ==================================================================== -->
+      <main id="simulation-view" class="view-container">
+        <!-- Participant & Difficulty Control Bar -->
+        <section class="session-bar" aria-label="Simulation Session Controls">
+          <div class="session-controls-group">
+            <div class="field-inline">
+              <label for="participant-id-input">Participant ID</label>
+              <input type="text" id="participant-id-input" class="input-compact" value="P-2026-007" maxlength="20" />
+            </div>
+
+            <div class="field-inline">
+              <label>Difficulty Mode</label>
+              <div class="difficulty-pills" role="group" aria-label="Difficulty Mode">
+                <button type="button" class="diff-btn" data-mode="easy" onclick="setDifficulty('easy')">Easy (15)</button>
+                <button type="button" class="diff-btn active" data-mode="medium" onclick="setDifficulty('medium')">Medium (18)</button>
+                <button type="button" class="diff-btn" data-mode="hard" onclick="setDifficulty('hard')">Hard (20)</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="session-controls-group">
+            <span id="mode-description-tag" class="hud-sub">Standard Assessment: 18 real specimens, no category hints.</span>
+          </div>
+        </section>
+
+        <!-- Real-Time Performance HUD -->
+        <section class="hud-grid" aria-label="Live Performance Metrics">
+          <div class="hud-card">
+            <div class="hud-label">Current Score</div>
+            <div class="hud-value-row">
+              <div class="hud-value" id="hud-score">0</div>
+              <div class="hud-sub" id="hud-points-rule">+10 pts / sort</div>
+            </div>
+          </div>
+
+          <div class="hud-card">
+            <div class="hud-label">Classification Accuracy</div>
+            <div class="hud-value-row">
+              <div class="hud-value" id="hud-accuracy">100%</div>
+              <div class="hud-sub" id="hud-tally">0 Correct / 0 Wrong</div>
+            </div>
+          </div>
+
+          <div class="hud-card">
+            <div class="hud-label">Simulation Progress</div>
+            <div class="hud-value-row">
+              <div class="hud-value" id="hud-progress-pct">0%</div>
+              <div class="hud-sub" id="hud-progress-count">0 of 18 sorted</div>
+            </div>
+            <div class="progress-track">
+              <div class="progress-fill" id="hud-progress-bar"></div>
+            </div>
+          </div>
+
+          <div class="hud-card">
+            <div class="hud-label">Elapsed Time</div>
+            <div class="hud-value-row">
+              <div class="hud-value" id="hud-timer">00:00</div>
+              <div class="hud-sub">Active Session</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Immediate Clinical Feedback Banner -->
+        <div id="feedback-banner" class="feedback-banner neutral" role="status" aria-live="polite">
+          <div class="feedback-left">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="16" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <span id="feedback-text">Drag the waste photograph into either the Green Wet Waste bin or Blue Dry Waste bin, or select a destination button below.</span>
+          </div>
+          <span id="feedback-badge" class="hud-sub">Ready</span>
+        </div>
+
+        <!-- Primary Workspace: Photographic Specimen Card + Two 3D Municipal Bins -->
+        <section class="arena-workspace">
+          <!-- Left: Waste Specimen Staging Deck -->
+          <div class="specimen-deck">
+            <div>
+              <div class="deck-header">
+                <span class="deck-tag">Active Waste Specimen</span>
+                <span class="deck-counter" id="specimen-index-label">Item 1 / 18</span>
+              </div>
+
+              <div class="waste-card-stage" id="waste-card-stage">
+                <div class="waste-item-card" id="active-waste-card" draggable="true">
+                  <div class="waste-photo-frame">
+                    <span class="photo-specimen-badge" id="specimen-code">SPECIMEN #01</span>
+                    <img id="waste-item-img" src="" alt="Waste specimen photograph" />
+                  </div>
+                  <div class="waste-card-meta">
+                    <div class="waste-item-title" id="waste-item-name">Loading specimen...</div>
+                    <div class="waste-item-desc" id="waste-item-desc">Inspect material composition before sorting.</div>
+                    <div id="easy-hint-box" class="easy-hint-pill hidden"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="deck-instructions">
+                Drag photo card onto the target bin, or click a bin / button below to deposit.
+              </div>
+              <div class="quick-sort-buttons">
+                <button type="button" class="btn btn-green" onclick="handleSortAttempt('wet')">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path>
+                    <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"></path>
+                  </svg>
+                  <span>Deposit Wet</span>
+                </button>
+                <button type="button" class="btn btn-primary" onclick="handleSortAttempt('dry')">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                    <path d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5"></path>
+                    <path d="M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12"></path>
+                    <path d="m14 16-3 3 3 3"></path>
+                  </svg>
+                  <span>Deposit Dry</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: Two Large 3D Municipal Dustbins -->
+          <div class="bins-stage">
+            <div class="bins-stage-header">
+              <h2>Municipal Source-Segregation Receptacles</h2>
+              <p>Drop biodegradable organic matter in Green and clean dry recyclables in Blue</p>
+            </div>
+
+            <div class="bins-pair">
+              <!-- GREEN BIN: WET WASTE -->
+              <div
+                class="bin-dropzone bin-green"
+                id="bin-wet"
+                data-bin="wet"
+                role="button"
+                tabindex="0"
+                aria-label="Green Dustbin for Wet Waste"
+                onclick="handleSortAttempt('wet')"
+              >
+                <div class="municipal-lid-assembly">
+                  <div class="lid-handle"></div>
+                  <div class="lid-dome"></div>
+                  <div class="lid-lip"></div>
+                </div>
+                <div class="bin-mouth-cavity"></div>
+                <div class="municipal-body">
+                  <div class="bin-ribs">
+                    <div class="bin-rib"></div>
+                    <div class="bin-rib"></div>
+                    <div class="bin-rib"></div>
+                  </div>
+
+                  <div class="bin-decal">
+                    <div class="bin-symbol-circle" aria-hidden="true">
+                      <!-- Organic Biodegradable Leaf Symbol -->
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"></path>
+                        <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"></path>
+                      </svg>
+                    </div>
+                    <div class="bin-decal-title">WET WASTE</div>
+                    <div class="bin-decal-sub">Organic / Biodegradable</div>
+                  </div>
+
+                  <div class="bin-count-pill" id="wet-bin-counter">0 Items Deposited</div>
+                </div>
+                <div class="bin-base-wheels">
+                  <div class="wheel"></div>
+                  <div class="wheel"></div>
+                </div>
+                <div class="bin-floor-shadow"></div>
+              </div>
+
+              <!-- BLUE BIN: DRY WASTE -->
+              <div
+                class="bin-dropzone bin-blue"
+                id="bin-dry"
+                data-bin="dry"
+                role="button"
+                tabindex="0"
+                aria-label="Blue Dustbin for Dry Waste"
+                onclick="handleSortAttempt('dry')"
+              >
+                <div class="municipal-lid-assembly">
+                  <div class="lid-handle"></div>
+                  <div class="lid-dome"></div>
+                  <div class="lid-lip"></div>
+                </div>
+                <div class="bin-mouth-cavity"></div>
+                <div class="municipal-body">
+                  <div class="bin-ribs">
+                    <div class="bin-rib"></div>
+                    <div class="bin-rib"></div>
+                    <div class="bin-rib"></div>
+                  </div>
+
+                  <div class="bin-decal">
+                    <div class="bin-symbol-circle" aria-hidden="true">
+                      <!-- Standard Recyclable Mobius Loop Symbol -->
+                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M7 19H4.815a1.83 1.83 0 0 1-1.57-.881 1.785 1.785 0 0 1-.004-1.784L7.196 9.5"></path>
+                        <path d="M11 19h8.203a1.83 1.83 0 0 0 1.556-.89 1.784 1.784 0 0 0 0-1.775l-1.226-2.12"></path>
+                        <path d="m14 16-3 3 3 3"></path>
+                        <path d="M8.293 13.596 7.196 9.5 3.1 10.598"></path>
+                        <path d="m9.344 5.811 1.093-1.892A1.83 1.83 0 0 1 11.985 3a1.784 1.784 0 0 1 1.546.888l3.943 6.843"></path>
+                        <path d="m13.378 9.633 4.096 1.098 1.097-4.096"></path>
+                      </svg>
+                    </div>
+                    <div class="bin-decal-title">DRY WASTE</div>
+                    <div class="bin-decal-sub">Recyclable / Non-Organic</div>
+                  </div>
+
+                  <div class="bin-count-pill" id="dry-bin-counter">0 Items Deposited</div>
+                </div>
+                <div class="bin-base-wheels">
+                  <div class="wheel"></div>
+                  <div class="wheel"></div>
+                </div>
+                <div class="bin-floor-shadow"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <!-- ====================================================================
+           VIEW 2: ADMIN ANALYTICS DASHBOARD
+           ==================================================================== -->
+      <section id="admin-view" class="view-container hidden">
+        <!-- 6 KPI Cards -->
+        <div class="kpi-grid">
+          <div class="kpi-card">
+            <div class="kpi-title">Total Participants</div>
+            <div class="kpi-number" id="kpi-participants">0</div>
+            <div class="kpi-caption">Recorded CP5 sessions</div>
+          </div>
+
+          <div class="kpi-card kpi-green">
+            <div class="kpi-title">Completed Simulations</div>
+            <div class="kpi-number" id="kpi-completed">0</div>
+            <div class="kpi-caption" id="kpi-completion-rate">0% completion rate</div>
+          </div>
+
+          <div class="kpi-card">
+            <div class="kpi-title">Average Score</div>
+            <div class="kpi-number" id="kpi-avg-score">0</div>
+            <div class="kpi-caption">Points per participant</div>
+          </div>
+
+          <div class="kpi-card kpi-green">
+            <div class="kpi-title">Average Accuracy</div>
+            <div class="kpi-number" id="kpi-avg-accuracy">0%</div>
+            <div class="kpi-caption">Mean segregation precision</div>
+          </div>
+
+          <div class="kpi-card kpi-green">
+            <div class="kpi-title">Total Correct Sorts</div>
+            <div class="kpi-number" id="kpi-total-correct">0</div>
+            <div class="kpi-caption">Accurate bin placements</div>
+          </div>
+
+          <div class="kpi-card kpi-red">
+            <div class="kpi-title">Total Incorrect Sorts</div>
+            <div class="kpi-number" id="kpi-total-incorrect">0</div>
+            <div class="kpi-caption">Cross-contamination errors</div>
+          </div>
+        </div>
+
+        <!-- 4 Analytics Charts & Misclassification Panels -->
+        <div class="charts-grid">
+          <div class="panel-card">
+            <div class="panel-header">
+              <h3>Wet vs. Dry Waste Sorting Distribution</h3>
+              <span>Share of total sorted items</span>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="wetDryPieChart"></canvas>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-header">
+              <h3>Correct vs. Incorrect Sorting</h3>
+              <span>Classification outcome breakdown</span>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="correctIncorrectBarChart"></canvas>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-header">
+              <h3>Participant Performance Trend</h3>
+              <span>Score & Accuracy (%) by session</span>
+            </div>
+            <div class="chart-canvas-wrap">
+              <canvas id="performanceLineChart"></canvas>
+            </div>
+          </div>
+
+          <div class="panel-card">
+            <div class="panel-header">
+              <h3>Most Frequently Misclassified Waste Items</h3>
+              <span>Ranked error frequency</span>
+            </div>
+            <div class="misclassified-list" id="misclassified-ranking">
+              <!-- Populated dynamically from simulation data -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Participant Evaluation Data Table -->
+        <div class="panel-card">
+          <div class="panel-header">
+            <div>
+              <h3>Participant Evaluation Logs</h3>
+              <span>Comprehensive CP5 testing telemetry stored in LocalStorage</span>
+            </div>
+            <div class="topbar-actions">
+              <button type="button" class="btn btn-green" onclick="exportDashboardCSV()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span>Export CSV</span>
+              </button>
+              <button type="button" class="btn btn-danger" onclick="openResetConfirmModal()">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                </svg>
+                <span>Reset Data</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="table-toolbar">
+            <div class="table-filters">
+              <input
+                type="text"
+                id="search-participant-input"
+                class="search-input"
+                placeholder="Search Participant ID..."
+                oninput="renderAdminDashboard()"
+              />
+              <select id="filter-status-select" class="select-filter" onchange="renderAdminDashboard()">
+                <option value="all">All Statuses</option>
+                <option value="Completed">Completed</option>
+                <option value="In Progress / Partial">Partial / In Progress</option>
+              </select>
+              <select id="filter-difficulty-select" class="select-filter" onchange="renderAdminDashboard()">
+                <option value="all">All Difficulties</option>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+              </select>
+            </div>
+            <span class="hud-sub" id="table-row-count">Showing 0 records</span>
+          </div>
+
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr>
+                  <th>Participant ID</th>
+                  <th>Date & Time</th>
+                  <th>Mode</th>
+                  <th>Score</th>
+                  <th>Accuracy</th>
+                  <th>Completion Status</th>
+                  <th>Time Taken</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="participants-table-body">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       MODAL 1: FIRST-TIME USER PROTOCOL & INSTRUCTIONS
+       ======================================================================== -->
+  <div id="instructions-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="inst-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h2 id="inst-title">Source-Segregation Protocol — "Two Bins, One Bag"</h2>
+          <p class="hud-sub">University Design Thinking CP5 Prototype Operating Guidelines</p>
+        </div>
+        <button type="button" class="close-modal-btn" onclick="closeModal('instructions-modal')" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <p style="font-size: 0.88rem; color: var(--text-secondary);">
+        Effective municipal solid waste management begins at the household level by preventing organic moisture from contaminating recyclable dry materials. Examine each photographic waste specimen and sort it into the appropriate receptacle:
+      </p>
+
+      <div class="protocol-grid">
+        <div class="protocol-box green">
+          <h4 style="color: var(--green-800);">GREEN BIN — WET WASTE</h4>
+          <ul>
+            <li>Biodegradable kitchen & organic waste</li>
+            <li>Fruit & vegetable peels, banana skins, rotten produce</li>
+            <li>Leftover cooked food scraps & crushed eggshells</li>
+            <li>Used tea leaves, coffee grounds, wilted flowers</li>
+          </ul>
+        </div>
+
+        <div class="protocol-box blue">
+          <h4 style="color: var(--blue-800);">BLUE BIN — DRY WASTE</h4>
+          <ul>
+            <li>Non-biodegradable & recyclable materials</li>
+            <li>Crushed plastic bottles, containers & wrappers</li>
+            <li>Newspapers, office paper sheets & cardboard boxes</li>
+            <li>Aluminium beverage cans, metal tins & glass bottles</li>
+          </ul>
+        </div>
+      </div>
+
+      <div style="background: var(--bg-subtle); border: 1px solid var(--border-light); border-radius: 10px; padding: 12px 14px; font-size: 0.82rem; color: var(--text-secondary);">
+        <strong>Interaction Methods:</strong> Drag the photographic waste specimen card directly onto the Green or Blue bin, or click either bin / quick-deposit button. Your accuracy, score, and completion time are logged automatically to the Admin Dashboard.
+      </div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="closeModal('instructions-modal')">Begin Simulation</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       MODAL 2: SIMULATION COMPLETION SUMMARY
+       ======================================================================== -->
+  <div id="summary-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="sum-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h2 id="sum-title">Simulation Assessment Complete</h2>
+          <p class="hud-sub" id="summary-participant-label">Participant ID: P-2026-007</p>
+        </div>
+        <button type="button" class="close-modal-btn" onclick="closeModal('summary-modal')" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="summary-stats-row">
+        <div class="summary-stat">
+          <strong id="sum-score">0</strong>
+          <span>Final Score</span>
+        </div>
+        <div class="summary-stat">
+          <strong id="sum-accuracy">0%</strong>
+          <span>Accuracy</span>
+        </div>
+        <div class="summary-stat">
+          <strong id="sum-correct-ratio">0/0</strong>
+          <span>Correct Sorts</span>
+        </div>
+        <div class="summary-stat">
+          <strong id="sum-time">00:00</strong>
+          <span>Time Taken</span>
+        </div>
+      </div>
+
+      <h4 style="font-size: 0.84rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-secondary); margin-bottom: 8px;">
+        Item-by-Item Audit Log
+      </h4>
+      <div class="breakdown-list" id="summary-breakdown-list"></div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('summary-modal'); switchView('admin');">
+          View Admin Dashboard
+        </button>
+        <button type="button" class="btn btn-primary" onclick="closeModal('summary-modal'); startNewParticipantSession();">
+          Next Participant Session
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       MODAL 3: INDIVIDUAL PARTICIPANT PERFORMANCE INSPECTOR
+       ======================================================================== -->
+  <div id="inspector-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="insp-title">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h2 id="insp-title">Participant Session Audit</h2>
+          <p class="hud-sub" id="insp-subtitle">Detailed item-level classification telemetry</p>
+        </div>
+        <button type="button" class="close-modal-btn" onclick="closeModal('inspector-modal')" aria-label="Close">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+
+      <div class="summary-stats-row" id="insp-stats-row"></div>
+      <div class="breakdown-list" id="insp-breakdown-list"></div>
+
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" onclick="closeModal('inspector-modal')">Close Report</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       MODAL 4: CONFIRM DATA RESET
+       ======================================================================== -->
+  <div id="reset-confirm-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="reset-title">
+    <div class="modal-card" style="max-width: 440px;">
+      <div class="modal-header">
+        <div>
+          <h2 id="reset-title">Confirm Database Reset</h2>
+          <p class="hud-sub">Permanent LocalStorage Action</p>
+        </div>
+      </div>
+      <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px;">
+        Are you sure you want to permanently erase all participant simulation records and reset all dashboard analytics to zero? This action cannot be undone.
+      </p>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="closeModal('reset-confirm-modal')">Cancel</button>
+        <button type="button" class="btn btn-danger" onclick="confirmResetAllData()">Erase All Records</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================================================
+       JAVASCRIPT ENGINE: PHOTOGRAPHIC DATASET, SIMULATION, CHARTS & STORAGE
+       ======================================================================== -->
+  <script>
+    /**
+     * 1. CURATED PHOTOREALISTIC WASTE ITEM DATASET (20 REAL SPECIMENS)
+     * Uses real high-resolution photographs of actual waste materials with
+     * verified Unsplash photo endpoints and an automatic canvas photographic
+     * fallback generator if offline.
+     */
+    const WASTE_ITEMS_CATALOG = [
+      // --- 10 WET WASTE ITEMS (ORGANIC / BIODEGRADABLE) ---
+      {
+        id: 'W01',
+        name: 'Spotted Banana Peel',
+        category: 'wet',
+        description: 'Ripened banana skin with brown and yellow organic spots.',
+        hint: 'Organic fruit skin — decomposes rapidly in compost.',
+        image: 'https://images.unsplash.com/photo-1528825871115-3581a5387919?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'W02',
+        name: 'Rotten Vegetables',
+        category: 'wet',
+        description: 'Spoiled, bruised vegetable matter unfit for consumption.',
+        hint: 'Biodegradable kitchen produce waste.',
+        image: 'https://images.unsplash.com/photo-1597362925123-77861d3fbac7?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'W03',
+        name: 'Leftover Food on Plate',
+        category: 'wet',
+        description: 'Unconsumed cooked meal scraps and organic food residue.',
+        hint: 'Cooked organic food waste goes into Wet Waste.',
+        image: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'W04',
+        name: 'Fresh Vegetable Peels',
+        category: 'wet',
+        description: 'Raw carrot, potato, and cucumber kitchen prep parings.',
+        hint: 'Raw plant peels are 100% compostable.',
+        image: 'https://images.unsplash.com/photo-1518977676601-b53f82aba655?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'W05',
+        name: 'Used Tea Leaves',
+        category: 'wet',
+        description: 'Steeped loose-leaf tea residue drained after brewing.',
+        hint: 'Natural botanical leaves belong in the Green Bin.',
+        image: 'https://images.unsplash.com/photo-1564890369478-c89ca6d9cde9?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'W06',
+        name: 'Crushed Eggshells',
+        category: 'wet',
+        description: 'Broken calcium-rich eggshells from kitchen food preparation.',
+        hint: 'Calcium organic shell waste is biodegradable.',
+        image: 'https://images.unsplash.com/photo-1587486913049-53fc88980cfc?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'W07',
+        name: 'Fruit Scraps & Cores',
+        category: 'wet',
+        description: 'Discarded apple cores, citrus rinds, and melon trimmings.',
+        hint: 'Fruit pulp and seeds are organic wet waste.',
+        image: 'https://images.unsplash.com/photo-1610832958506-aa56368176cf?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'W08',
+        name: 'Spoiled Fruits',
+        category: 'wet',
+        description: 'Overripe, fermenting fruit past edible shelf life.',
+        hint: 'Spoiled agricultural produce decomposes organically.',
+        image: 'https://images.unsplash.com/photo-1577234286642-fc543a52f063?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'W09',
+        name: 'Used Coffee Grounds',
+        category: 'wet',
+        description: 'Damp spent espresso and filter coffee grounds.',
+        hint: 'Nitrogen-rich organic coffee grounds go in Wet Waste.',
+        image: 'https://images.unsplash.com/photo-1511537190424-bbbab87ac5eb?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'W10',
+        name: 'Wilted Flowers',
+        category: 'wet',
+        description: 'Dried, faded floral stems and fallen petals.',
+        hint: 'Garden and floral trimmings are biodegradable.',
+        image: 'https://images.unsplash.com/photo-1490750967868-88aa4486c946?auto=format&fit=crop&w=640&q=80'
+      },
+
+      // --- 10 DRY WASTE ITEMS (RECYCLABLE / NON-ORGANIC) ---
+      {
+        id: 'D01',
+        name: 'Crushed Plastic Water Bottle',
+        category: 'dry',
+        description: 'Empty compressed PET single-use drinking water bottle.',
+        hint: 'Clean PET polymer plastic belongs in Dry Waste.',
+        image: 'https://images.unsplash.com/photo-1605600659908-0ef719419d41?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'D02',
+        name: 'Old Newspaper',
+        category: 'dry',
+        description: 'Folded newsprint sheets ready for paper mill recycling.',
+        hint: 'Dry paper fiber is a primary recyclable.',
+        image: 'https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'D03',
+        name: 'Used Cardboard Box',
+        category: 'dry',
+        description: 'Flattened corrugated kraft shipping carton.',
+        hint: 'Corrugated board is dry recyclable packaging.',
+        image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'D04',
+        name: 'Aluminium Beverage Can',
+        category: 'dry',
+        description: 'Empty metallic soda can made of recyclable aluminium.',
+        hint: 'Non-ferrous metal cans go in the Blue Bin.',
+        image: 'https://images.unsplash.com/photo-1534057308991-b9b3a578f1b1?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'D05',
+        name: 'Plastic Packaging Wrapper',
+        category: 'dry',
+        description: 'Clear polypropylene outer retail film wrapper.',
+        hint: 'Synthetic polymer film is non-biodegradable dry waste.',
+        image: 'https://images.unsplash.com/photo-1621451537084-482c73073a0f?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'D06',
+        name: 'Glass Bottle',
+        category: 'dry',
+        description: 'Empty clear glass beverage container without liquid.',
+        hint: 'Glass is 100% recyclable in the Dry Waste stream.',
+        image: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'D07',
+        name: 'Office Paper Sheets',
+        category: 'dry',
+        description: 'Used A4 printed document sheets and loose stationery.',
+        hint: 'Clean cellulose office paper belongs in Dry Waste.',
+        image: 'https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'D08',
+        name: 'Plastic Food Container',
+        category: 'dry',
+        description: 'Rinsed rigid HDPE/PP takeout storage tub.',
+        hint: 'Rigid plastic containers belong in Dry Waste.',
+        image: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'D09',
+        name: 'Metal Food Can',
+        category: 'dry',
+        description: 'Empty tin-plated steel canned food container.',
+        hint: 'Ferrous metal cans are sorted into Dry Waste.',
+        image: 'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?auto=format&fit=crop&w=640&q=80'
+      },
+      {
+        id: 'D10',
+        name: 'Empty Chips Packet',
+        category: 'dry',
+        description: 'Metallized multi-layer snack pouch emptied of crumbs.',
+        hint: 'Multi-layer plastic/foil wrappers go in Dry Waste.',
+        image: 'https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&w=640&q=80'
+      }
+    ];
+
+    const STORAGE_KEY = 'two_bins_one_bag_cp5_records_v1';
+
+    const DIFFICULTY_CONFIG = {
+      easy: {
+        count: 15,
+        pointsPerCorrect: 10,
+        penaltyPerWrong: 0,
+        showHints: true,
+        label: 'Easy Mode: 15 items with material composition hints.'
+      },
+      medium: {
+        count: 18,
+        pointsPerCorrect: 10,
+        penaltyPerWrong: 2,
+        showHints: false,
+        label: 'Medium Mode: 18 items, no hints (-2 pts penalty per error).'
+      },
+      hard: {
+        count: 20,
+        pointsPerCorrect: 15,
+        penaltyPerWrong: 5,
+        showHints: false,
+        label: 'Hard Mode: All 20 specimens, high precision (-5 pts penalty per error).'
+      }
+    };
+
+    /* ========================================================================
+       2. APPLICATION STATE
+       ======================================================================== */
+    let simState = {
+      difficulty: 'medium',
+      queue: [],
+      currentIndex: 0,
+      score: 0,
+      correctCount: 0,
+      incorrectCount: 0,
+      wetSortedCount: 0,
+      drySortedCount: 0,
+      attemptsLog: [],
+      startTime: null,
+      elapsedSeconds: 0,
+      timerInterval: null,
+      isAnimating: false,
+      isCompleted: false
+    };
+
+    let chartInstances = {
+      pie: null,
+      bar: null,
+      line: null
+    };
+
+    /* ========================================================================
+       3. INITIALIZATION & SEED TELEMETRY
+       ======================================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      seedInitialDataIfNeeded();
+      setupDragAndDrop();
+      assignNextParticipantId();
+      initSimulation();
+      renderAdminDashboard();
+    });
+
+    /**
+     * Seeds realistic initial CP5 evaluation records ONLY if LocalStorage
+     * has never been initialized, ensuring the Admin Dashboard charts are
+     * immediately meaningful while staying 100% driven by LocalStorage.
+     */
+    function seedInitialDataIfNeeded() {
+      const existing = localStorage.getItem(STORAGE_KEY);
+      if (existing !== null) return;
+
+      const sampleRecords = [
+        {
+          id: 'REC-101',
+          participantId: 'P-2026-001',
+          timestamp: '2026-11-20 09:42',
+          difficulty: 'medium',
+          score: 156,
+          accuracy: 89,
+          totalItems: 18,
+          sortedCount: 18,
+          correctCount: 16,
+          incorrectCount: 2,
+          wetSorted: 9,
+          drySorted: 9,
+          status: 'Completed',
+          timeTakenSec: 64,
+          attempts: [
+            { itemId: 'W01', name: 'Spotted Banana Peel', expected: 'wet', chosen: 'wet', isCorrect: true },
+            { itemId: 'D10', name: 'Empty Chips Packet', expected: 'dry', chosen: 'wet', isCorrect: false },
+            { itemId: 'W05', name: 'Used Tea Leaves', expected: 'wet', chosen: 'wet', isCorrect: true },
+            { itemId: 'D05', name: 'Plastic Packaging Wrapper', expected: 'dry', chosen: 'wet', isCorrect: false }
+          ]
+        },
+        {
+          id: 'REC-102',
+          participantId: 'P-2026-002',
+          timestamp: '2026-11-20 10:15',
+          difficulty: 'easy',
+          score: 140,
+          accuracy: 93,
+          totalItems: 15,
+          sortedCount: 15,
+          correctCount: 14,
+          incorrectCount: 1,
+          wetSorted: 8,
+          drySorted: 7,
+          status: 'Completed',
+          timeTakenSec: 49,
+          attempts: [
+            { itemId: 'W06', name: 'Crushed Eggshells', expected: 'wet', chosen: 'dry', isCorrect: false },
+            { itemId: 'D01', name: 'Crushed Plastic Water Bottle', expected: 'dry', chosen: 'dry', isCorrect: true }
+          ]
+        },
+        {
+          id: 'REC-103',
+          participantId: 'P-2026-003',
+          timestamp: '2026-11-21 11:08',
+          difficulty: 'hard',
+          score: 235,
+          accuracy: 85,
+          totalItems: 20,
+          sortedCount: 20,
+          correctCount: 17,
+          incorrectCount: 3,
+          wetSorted: 10,
+          drySorted: 10,
+          status: 'Completed',
+          timeTakenSec: 88,
+          attempts: [
+            { itemId: 'W09', name: 'Used Coffee Grounds', expected: 'wet', chosen: 'dry', isCorrect: false },
+            { itemId: 'D10', name: 'Empty Chips Packet', expected: 'dry', chosen: 'wet', isCorrect: false },
+            { itemId: 'D08', name: 'Plastic Food Container', expected: 'dry', chosen: 'wet', isCorrect: false }
+          ]
+        },
+        {
+          id: 'REC-104',
+          participantId: 'P-2026-004',
+          timestamp: '2026-11-22 14:27',
+          difficulty: 'medium',
+          score: 180,
+          accuracy: 100,
+          totalItems: 18,
+          sortedCount: 18,
+          correctCount: 18,
+          incorrectCount: 0,
+          wetSorted: 9,
+          drySorted: 9,
+          status: 'Completed',
+          timeTakenSec: 53,
+          attempts: [
+            { itemId: 'W03', name: 'Leftover Food on Plate', expected: 'wet', chosen: 'wet', isCorrect: true },
+            { itemId: 'D04', name: 'Aluminium Beverage Can', expected: 'dry', chosen: 'dry', isCorrect: true }
+          ]
+        },
+        {
+          id: 'REC-105',
+          participantId: 'P-2026-005',
+          timestamp: '2026-11-23 16:04',
+          difficulty: 'hard',
+          score: 260,
+          accuracy: 90,
+          totalItems: 20,
+          sortedCount: 20,
+          correctCount: 18,
+          incorrectCount: 2,
+          wetSorted: 10,
+          drySorted: 10,
+          status: 'Completed',
+          timeTakenSec: 76,
+          attempts: [
+            { itemId: 'W06', name: 'Crushed Eggshells', expected: 'wet', chosen: 'dry', isCorrect: false },
+            { itemId: 'D05', name: 'Plastic Packaging Wrapper', expected: 'dry', chosen: 'wet', isCorrect: false }
+          ]
+        },
+        {
+          id: 'REC-106',
+          participantId: 'P-2026-006',
+          timestamp: '2026-11-24 09:12',
+          difficulty: 'medium',
+          score: 168,
+          accuracy: 94,
+          totalItems: 18,
+          sortedCount: 18,
+          correctCount: 17,
+          incorrectCount: 1,
+          wetSorted: 9,
+          drySorted: 9,
+          status: 'Completed',
+          timeTakenSec: 58,
+          attempts: [
+            { itemId: 'D10', name: 'Empty Chips Packet', expected: 'dry', chosen: 'wet', isCorrect: false }
+          ]
+        }
+      ];
+
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(sampleRecords));
+    }
+
+    function getRecords() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function saveRecords(records) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(records));
+    }
+
+    function assignNextParticipantId() {
+      const records = getRecords();
+      const nextNum = records.length + 1;
+      const padded = String(nextNum).padStart(3, '0');
+      document.getElementById('participant-id-input').value = `P-2026-${padded}`;
+    }
+
+    /* ========================================================================
+       4. VIEW SWITCHING & MODALS
+       ======================================================================== */
+    function switchView(viewName) {
+      const simView = document.getElementById('simulation-view');
+      const adminView = document.getElementById('admin-view');
+      const navSim = document.getElementById('nav-sim-btn');
+      const navAdmin = document.getElementById('nav-admin-btn');
+      const heading = document.getElementById('page-heading');
+      const subheading = document.getElementById('page-subheading');
+      const restartBtn = document.getElementById('topbar-restart-btn');
+
+      if (viewName === 'simulation') {
+        simView.classList.remove('hidden');
+        adminView.classList.add('hidden');
+        navSim.classList.add('active');
+        navAdmin.classList.remove('active');
+        heading.textContent = 'Waste Segregation Training Simulator';
+        subheading.textContent = 'Inspect each photographic waste specimen and deposit it into the designated municipal bin.';
+        restartBtn.classList.remove('hidden');
+      } else {
+        simView.classList.add('hidden');
+        adminView.classList.remove('hidden');
+        navSim.classList.remove('active');
+        navAdmin.classList.add('active');
+        heading.textContent = 'CP5 Evaluation & Analytics Dashboard';
+        subheading.textContent = 'Real-time participant segregation accuracy, error distribution, and audit telemetry.';
+        restartBtn.classList.add('hidden');
+        renderAdminDashboard();
+      }
+    }
+
+    function openInstructionsModal() {
+      document.getElementById('instructions-modal').classList.remove('hidden');
+    }
+
+    function openResetConfirmModal() {
+      document.getElementById('reset-confirm-modal').classList.remove('hidden');
+    }
+
+    function closeModal(modalId) {
+      document.getElementById(modalId).classList.add('hidden');
+    }
+
+    /* ========================================================================
+       5. SIMULATION ENGINE
+       ======================================================================== */
+    function shuffleArray(arr) {
+      const copy = [...arr];
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function setDifficulty(mode) {
+      if (!DIFFICULTY_CONFIG[mode]) return;
+      simState.difficulty = mode;
+
+      document.querySelectorAll('.diff-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.mode === mode);
+      });
+
+      document.getElementById('mode-description-tag').textContent = DIFFICULTY_CONFIG[mode].label;
+      initSimulation();
+    }
+
+    function restartSimulation() {
+      initSimulation();
+    }
+
+    function startNewParticipantSession() {
+      assignNextParticipantId();
+      initSimulation();
+    }
+
+    function initSimulation() {
+      clearInterval(simState.timerInterval);
+
+      const cfg = DIFFICULTY_CONFIG[simState.difficulty];
+      // Ensure balanced selection of wet and dry items for every session
+      const wetPool = shuffleArray(WASTE_ITEMS_CATALOG.filter(i => i.category === 'wet'));
+      const dryPool = shuffleArray(WASTE_ITEMS_CATALOG.filter(i => i.category === 'dry'));
+
+      const wetTake = Math.ceil(cfg.count / 2);
+      const dryTake = cfg.count - wetTake;
+      const combinedQueue = shuffleArray([
+        ...wetPool.slice(0, wetTake),
+        ...dryPool.slice(0, dryTake)
+      ]);
+
+      simState = {
+        difficulty: simState.difficulty,
+        queue: combinedQueue,
+        currentIndex: 0,
+        score: 0,
+        correctCount: 0,
+        incorrectCount: 0,
+        wetSortedCount: 0,
+        drySortedCount: 0,
+        attemptsLog: [],
+        startTime: Date.now(),
+        elapsedSeconds: 0,
+        timerInterval: null,
+        isAnimating: false,
+        isCompleted: false
+      };
+
+      // Reset Feedback Banner
+      const banner = document.getElementById('feedback-banner');
+      banner.className = 'feedback-banner neutral';
+      document.getElementById('feedback-text').textContent =
+        'Drag the waste photograph into either the Green Wet Waste bin or Blue Dry Waste bin, or select a destination button below.';
+      document.getElementById('feedback-badge').textContent = 'Ready';
+
+      // Start Timer
+      updateTimerDisplay();
+      simState.timerInterval = setInterval(() => {
+        if (!simState.isCompleted) {
+          simState.elapsedSeconds = Math.floor((Date.now() - simState.startTime) / 1000);
+          updateTimerDisplay();
+        }
+      }, 1000);
+
+      updateHUD();
+      renderCurrentWasteSpecimen();
+    }
+
+    function formatDuration(sec) {
+      const mins = Math.floor(sec / 60);
+      const rem = sec % 60;
+      return `${String(mins).padStart(2, '0')}:${String(rem).padStart(2, '0')}`;
+    }
+
+    function updateTimerDisplay() {
+      document.getElementById('hud-timer').textContent = formatDuration(simState.elapsedSeconds);
+    }
+
+    function updateHUD() {
+      const cfg = DIFFICULTY_CONFIG[simState.difficulty];
+      const total = simState.queue.length;
+      const sorted = simState.currentIndex;
+      const pct = total > 0 ? Math.round((sorted / total) * 100) : 0;
+      const accuracy = sorted > 0 ? Math.round((simState.correctCount / sorted) * 100) : 100;
+
+      document.getElementById('hud-score').textContent = simState.score;
+      document.getElementById('hud-points-rule').textContent =
+        cfg.penaltyPerWrong > 0
+          ? `+${cfg.pointsPerCorrect} / -${cfg.penaltyPerWrong} pts`
+          : `+${cfg.pointsPerCorrect} pts / sort`;
+
+      document.getElementById('hud-accuracy').textContent = `${accuracy}%`;
+      document.getElementById('hud-tally').textContent =
+        `${simState.correctCount} Correct / ${simState.incorrectCount} Wrong`;
+
+      document.getElementById('hud-progress-pct').textContent = `${pct}%`;
+      document.getElementById('hud-progress-count').textContent = `${sorted} of ${total} sorted`;
+      document.getElementById('hud-progress-bar').style.width = `${pct}%`;
+
+      document.getElementById('wet-bin-counter').textContent =
+        `${simState.wetSortedCount} Item${simState.wetSortedCount === 1 ? '' : 's'} Deposited`;
+      document.getElementById('dry-bin-counter').textContent =
+        `${simState.drySortedCount} Item${simState.drySortedCount === 1 ? '' : 's'} Deposited`;
+    }
+
+    /**
+     * Generates a realistic photographic fallback canvas image if an external
+     * photo fails to load due to network restrictions.
+     */
+    function applyPhotographicFallback(imgEl, item) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 640;
+      canvas.height = 420;
+      const ctx = canvas.getContext('2d');
+
+      const grad = ctx.createLinearGradient(0, 0, 640, 420);
+      if (item.category === 'wet') {
+        grad.addColorStop(0, '#1e293b');
+        grad.addColorStop(1, '#14532d');
+      } else {
+        grad.addColorStop(0, '#1e293b');
+        grad.addColorStop(1, '#1e3a8a');
+      }
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 640, 420);
+
+      // Subtle studio lighting vignette
+      const rad = ctx.createRadialGradient(320, 200, 40, 320, 200, 340);
+      rad.addColorStop(0, 'rgba(255,255,255,0.16)');
+      rad.addColorStop(1, 'rgba(0,0,0,0.45)');
+      ctx.fillStyle = rad;
+      ctx.fillRect(0, 0, 640, 420);
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = '700 28px Inter, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(item.name.toUpperCase(), 320, 205);
+
+      ctx.fillStyle = '#cbd5e1';
+      ctx.font = '500 17px Inter, sans-serif';
+      ctx.fillText(`Specimen Reference: ${item.id}`, 320, 240);
+
+      imgEl.onerror = null;
+      imgEl.src = canvas.toDataURL('image/jpeg', 0.9);
+    }
+
+    function renderCurrentWasteSpecimen() {
+      const card = document.getElementById('active-waste-card');
+      const total = simState.queue.length;
+
+      if (simState.currentIndex >= total) {
+        card.style.opacity = '0.35';
+        card.setAttribute('draggable', 'false');
+        document.getElementById('specimen-index-label').textContent = `Completed (${total}/${total})`;
+        return;
+      }
+
+      const item = simState.queue[simState.currentIndex];
+      const cfg = DIFFICULTY_CONFIG[simState.difficulty];
+
+      card.style.opacity = '1';
+      card.setAttribute('draggable', 'true');
+
+      document.getElementById('specimen-index-label').textContent =
+        `Item ${simState.currentIndex + 1} / ${total}`;
+      document.getElementById('specimen-code').textContent = `SPECIMEN #${item.id}`;
+      document.getElementById('waste-item-name').textContent = item.name;
+      document.getElementById('waste-item-desc').textContent = item.description;
+
+      const imgEl = document.getElementById('waste-item-img');
+      imgEl.alt = item.name;
+      imgEl.onerror = () => applyPhotographicFallback(imgEl, item);
+      imgEl.src = item.image;
+
+      const hintBox = document.getElementById('easy-hint-box');
+      if (cfg.showHints) {
+        hintBox.textContent = `Material Note: ${item.hint}`;
+        hintBox.classList.remove('hidden');
+      } else {
+        hintBox.classList.add('hidden');
+      }
+    }
+
+    /* ========================================================================
+       6. DRAG-AND-DROP + POINTER INTERACTION + FLY-INTO-BIN ANIMATION
+       ======================================================================== */
+    function setupDragAndDrop() {
+      const card = document.getElementById('active-waste-card');
+      const bins = document.querySelectorAll('.bin-dropzone');
+
+      // Standard HTML5 Drag Events
+      card.addEventListener('dragstart', (e) => {
+        if (simState.isAnimating || simState.isCompleted) {
+          e.preventDefault();
+          return;
+        }
+        card.classList.add('dragging');
+        if (e.dataTransfer) {
+          e.dataTransfer.setData('text/plain', 'active-waste');
+          e.dataTransfer.effectAllowed = 'move';
+        }
+      });
+
+      card.addEventListener('dragend', () => {
+        card.classList.remove('dragging');
+        bins.forEach(b => b.classList.remove('drag-over'));
+      });
+
+      bins.forEach(bin => {
+        bin.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          if (!simState.isAnimating && !simState.isCompleted) {
+            bin.classList.add('drag-over');
+          }
+        });
+
+        bin.addEventListener('dragleave', () => {
+          bin.classList.remove('drag-over');
+        });
+
+        bin.addEventListener('drop', (e) => {
+          e.preventDefault();
+          bin.classList.remove('drag-over');
+          const targetCategory = bin.dataset.bin;
+          handleSortAttempt(targetCategory);
+        });
+
+        // Keyboard accessibility
+        bin.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            handleSortAttempt(bin.dataset.bin);
+          }
+        });
+      });
+
+      // Touch Drag Support for Mobile & Tablet Screens
+      let touchClone = null;
+      card.addEventListener('touchstart', (e) => {
+        if (simState.isAnimating || simState.isCompleted) return;
+        const touch = e.touches[0];
+        const rect = card.getBoundingClientRect();
+
+        touchClone = card.cloneNode(true);
+        touchClone.style.position = 'fixed';
+        touchClone.style.left = `${rect.left}px`;
+        touchClone.style.top = `${rect.top}px`;
+        touchClone.style.width = `${rect.width}px`;
+        touchClone.style.zIndex = '9999';
+        touchClone.style.opacity = '0.92';
+        touchClone.style.pointerEvents = 'none';
+        touchClone.style.transform = 'scale(1.03)';
+        document.body.appendChild(touchClone);
+        card.style.opacity = '0.35';
+      }, { passive: true });
+
+      card.addEventListener('touchmove', (e) => {
+        if (!touchClone) return;
+        const touch = e.touches[0];
+        touchClone.style.left = `${touch.clientX - touchClone.offsetWidth / 2}px`;
+        touchClone.style.top = `${touch.clientY - touchClone.offsetHeight / 2}px`;
+
+        bins.forEach(bin => {
+          const bRect = bin.getBoundingClientRect();
+          const inside =
+            touch.clientX >= bRect.left &&
+            touch.clientX <= bRect.right &&
+            touch.clientY >= bRect.top &&
+            touch.clientY <= bRect.bottom;
+          bin.classList.toggle('drag-over', inside);
+        });
+      }, { passive: true });
+
+      card.addEventListener('touchend', (e) => {
+        if (!touchClone) return;
+        const touch = e.changedTouches[0];
+        let matchedBin = null;
+
+        bins.forEach(bin => {
+          bin.classList.remove('drag-over');
+          const bRect = bin.getBoundingClientRect();
+          if (
+            touch.clientX >= bRect.left &&
+            touch.clientX <= bRect.right &&
+            touch.clientY >= bRect.top &&
+            touch.clientY <= bRect.bottom
+          ) {
+            matchedBin = bin.dataset.bin;
+          }
+        });
+
+        touchClone.remove();
+        touchClone = null;
+        card.style.opacity = '1';
+
+        if (matchedBin) {
+          handleSortAttempt(matchedBin);
+        }
+      });
+    }
+
+    /**
+     * Animates the waste photograph flying smoothly into the target bin's mouth
+     * while lifting the 3D bin lid.
+     */
+    function animateWasteIntoBin(targetBinCategory, callback) {
+      const sourceCard = document.getElementById('active-waste-card');
+      const targetBin = document.getElementById(targetBinCategory === 'wet' ? 'bin-wet' : 'bin-dry');
+
+      if (!sourceCard || !targetBin) {
+        callback();
+        return;
+      }
+
+      const srcRect = sourceCard.getBoundingClientRect();
+      const binRect = targetBin.getBoundingClientRect();
+
+      const clone = sourceCard.cloneNode(true);
+      clone.classList.add('flying-waste-clone');
+      clone.style.left = `${srcRect.left}px`;
+      clone.style.top = `${srcRect.top}px`;
+      clone.style.width = `${srcRect.width}px`;
+      clone.style.height = `${srcRect.height}px`;
+      document.body.appendChild(clone);
+
+      sourceCard.style.opacity = '0';
+      targetBin.classList.add('bin-receiving');
+
+      requestAnimationFrame(() => {
+        const destX = binRect.left + binRect.width / 2 - srcRect.width * 0.18;
+        const destY = binRect.top + 42;
+        clone.style.left = `${destX}px`;
+        clone.style.top = `${destY}px`;
+        clone.style.transform = 'scale(0.28) rotate(8deg)';
+        clone.style.opacity = '0.15';
+      });
+
+      setTimeout(() => {
+        clone.remove();
+        targetBin.classList.remove('bin-receiving');
+        callback();
+      }, 450);
+    }
+
+    function handleSortAttempt(chosenBin) {
+      if (simState.isAnimating || simState.isCompleted) return;
+      if (simState.currentIndex >= simState.queue.length) return;
+
+      simState.isAnimating = true;
+      const item = simState.queue[simState.currentIndex];
+      const cfg = DIFFICULTY_CONFIG[simState.difficulty];
+      const isCorrect = item.category === chosenBin;
+
+      // Update bin deposit counters
+      if (chosenBin === 'wet') simState.wetSortedCount++;
+      if (chosenBin === 'dry') simState.drySortedCount++;
+
+      // Score & accuracy updates
+      if (isCorrect) {
+        simState.correctCount++;
+        simState.score += cfg.pointsPerCorrect;
+      } else {
+        simState.incorrectCount++;
+        simState.score = Math.max(0, simState.score - cfg.penaltyPerWrong);
+      }
+
+      simState.attemptsLog.push({
+        itemId: item.id,
+        name: item.name,
+        expected: item.category,
+        chosen: chosenBin,
+        isCorrect
+      });
+
+      // Immediate clinical feedback banner
+      const banner = document.getElementById('feedback-banner');
+      const feedbackText = document.getElementById('feedback-text');
+      const feedbackBadge = document.getElementById('feedback-badge');
+
+      const correctBinLabel = item.category === 'wet' ? 'WET WASTE (Green Bin)' : 'DRY WASTE (Blue Bin)';
+
+      if (isCorrect) {
+        banner.className = 'feedback-banner correct';
+        feedbackText.textContent = `Correct Classification: "${item.name}" deposited into ${correctBinLabel}.`;
+        feedbackBadge.textContent = `+${cfg.pointsPerCorrect} Points`;
+      } else {
+        banner.className = 'feedback-banner incorrect';
+        feedbackText.textContent = `Incorrect Sort: "${item.name}" belongs in ${correctBinLabel}.`;
+        feedbackBadge.textContent = cfg.penaltyPerWrong > 0 ? `-${cfg.penaltyPerWrong} Points` : '0 Points';
+      }
+
+      animateWasteIntoBin(chosenBin, () => {
+        simState.currentIndex++;
+        simState.isAnimating = false;
+        updateHUD();
+
+        if (simState.currentIndex >= simState.queue.length) {
+          completeSimulationSession();
+        } else {
+          renderCurrentWasteSpecimen();
+        }
+      });
+    }
+
+    function completeSimulationSession() {
+      simState.isCompleted = true;
+      clearInterval(simState.timerInterval);
+      simState.elapsedSeconds = Math.max(1, Math.floor((Date.now() - simState.startTime) / 1000));
+      updateTimerDisplay();
+      renderCurrentWasteSpecimen();
+
+      const total = simState.queue.length;
+      const accuracy = total > 0 ? Math.round((simState.correctCount / total) * 100) : 0;
+      const rawId = document.getElementById('participant-id-input').value.trim();
+      const participantId = rawId || `P-2026-${String(getRecords().length + 1).padStart(3, '0')}`;
+
+      const now = new Date();
+      const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+      const record = {
+        id: `REC-${Date.now()}`,
+        participantId,
+        timestamp,
+        difficulty: simState.difficulty,
+        score: simState.score,
+        accuracy,
+        totalItems: total,
+        sortedCount: simState.currentIndex,
+        correctCount: simState.correctCount,
+        incorrectCount: simState.incorrectCount,
+        wetSorted: simState.wetSortedCount,
+        drySorted: simState.drySortedCount,
+        status: 'Completed',
+        timeTakenSec: simState.elapsedSeconds,
+        attempts: simState.attemptsLog
+      };
+
+      const records = getRecords();
+      records.push(record);
+      saveRecords(records);
+
+      // Populate Summary Modal
+      document.getElementById('summary-participant-label').textContent =
+        `Participant ID: ${record.participantId} • Mode: ${record.difficulty.toUpperCase()}`;
+      document.getElementById('sum-score').textContent = record.score;
+      document.getElementById('sum-accuracy').textContent = `${record.accuracy}%`;
+      document.getElementById('sum-correct-ratio').textContent = `${record.correctCount}/${record.totalItems}`;
+      document.getElementById('sum-time').textContent = formatDuration(record.timeTakenSec);
+
+      const listEl = document.getElementById('summary-breakdown-list');
+      listEl.innerHTML = record.attempts
+        .map(att => {
+          const statusColor = att.isCorrect ? 'var(--green-700)' : 'var(--red-600)';
+          const statusLabel = att.isCorrect
+            ? `Correct (${att.chosen.toUpperCase()})`
+            : `Sorted ${att.chosen.toUpperCase()} — Expected ${att.expected.toUpperCase()}`;
+          return `
+            <div class="breakdown-row">
+              <strong>${att.name}</strong>
+              <span style="color: ${statusColor}; font-weight: 700;">${statusLabel}</span>
+            </div>
+          `;
+        })
+        .join('');
+
+      document.getElementById('summary-modal').classList.remove('hidden');
+      renderAdminDashboard();
+    }
+
+    /* ========================================================================
+       7. ADMIN ANALYTICS DASHBOARD (KPIs, CHART.JS, TABLE, CSV EXPORT)
+       ======================================================================== */
+    function renderAdminDashboard() {
+      const records = getRecords();
+
+      // 1. Calculate KPIs from actual stored data
+      const totalParticipants = records.length;
+      const completedRecords = records.filter(r => r.status === 'Completed');
+      const completedCount = completedRecords.length;
+      const completionRate = totalParticipants > 0 ? Math.round((completedCount / totalParticipants) * 100) : 0;
+
+      const sumScore = records.reduce((acc, r) => acc + (r.score || 0), 0);
+      const avgScore = totalParticipants > 0 ? Math.round(sumScore / totalParticipants) : 0;
+
+      const sumAcc = records.reduce((acc, r) => acc + (r.accuracy || 0), 0);
+      const avgAccuracy = totalParticipants > 0 ? Math.round(sumAcc / totalParticipants) : 0;
+
+      const totalCorrect = records.reduce((acc, r) => acc + (r.correctCount || 0), 0);
+      const totalIncorrect = records.reduce((acc, r) => acc + (r.incorrectCount || 0), 0);
+
+      document.getElementById('kpi-participants').textContent = totalParticipants;
+      document.getElementById('kpi-completed').textContent = completedCount;
+      document.getElementById('kpi-completion-rate').textContent = `${completionRate}% completion rate`;
+      document.getElementById('kpi-avg-score').textContent = avgScore;
+      document.getElementById('kpi-avg-accuracy').textContent = `${avgAccuracy}%`;
+      document.getElementById('kpi-total-correct').textContent = totalCorrect;
+      document.getElementById('kpi-total-incorrect').textContent = totalIncorrect;
+
+      // 2. Render Charts
+      renderDashboardCharts(records, totalCorrect, totalIncorrect);
+
+      // 3. Render Most Frequently Misclassified Waste Items
+      renderMisclassifiedRanking(records);
+
+      // 4. Render Filtered Data Table
+      renderParticipantsTable(records);
+    }
+
+    function renderDashboardCharts(records, totalCorrect, totalIncorrect) {
+      if (typeof Chart === 'undefined') return;
+
+      const totalWet = records.reduce((acc, r) => acc + (r.wetSorted || 0), 0);
+      const totalDry = records.reduce((acc, r) => acc + (r.drySorted || 0), 0);
+
+      // Chart 1: Pie Chart (Wet vs Dry Waste Sorting)
+      const pieCtx = document.getElementById('wetDryPieChart');
+      if (pieCtx) {
+        if (chartInstances.pie) chartInstances.pie.destroy();
+        chartInstances.pie = new Chart(pieCtx, {
+          type: 'pie',
+          data: {
+            labels: ['Wet Waste (Green Bin)', 'Dry Waste (Blue Bin)'],
+            datasets: [
+              {
+                data: [totalWet, totalDry],
+                backgroundColor: ['#16a34a', '#2563eb'],
+                borderColor: '#ffffff',
+                borderWidth: 2
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { font: { family: 'Inter', weight: '600' } }
+              }
+            }
+          }
+        });
+      }
+
+      // Chart 2: Bar Chart (Correct vs Incorrect Sorting)
+      const barCtx = document.getElementById('correctIncorrectBarChart');
+      if (barCtx) {
+        if (chartInstances.bar) chartInstances.bar.destroy();
+        chartInstances.bar = new Chart(barCtx, {
+          type: 'bar',
+          data: {
+            labels: ['Correct Classifications', 'Incorrect Classifications'],
+            datasets: [
+              {
+                label: 'Total Waste Items',
+                data: [totalCorrect, totalIncorrect],
+                backgroundColor: ['#15803d', '#dc2626'],
+                borderRadius: 8,
+                maxBarThickness: 72
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                ticks: { precision: 0 }
+              }
+            }
+          }
+        });
+      }
+
+      // Chart 3: Line Chart (Participant Performance Trend)
+      const lineCtx = document.getElementById('performanceLineChart');
+      if (lineCtx) {
+        if (chartInstances.line) chartInstances.line.destroy();
+        const labels = records.map(r => r.participantId);
+        const accuracySeries = records.map(r => r.accuracy);
+        const scoreSeries = records.map(r => r.score);
+
+        chartInstances.line = new Chart(lineCtx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [
+              {
+                label: 'Accuracy (%)',
+                data: accuracySeries,
+                borderColor: '#16a34a',
+                backgroundColor: 'rgba(22, 163, 74, 0.14)',
+                tension: 0.3,
+                fill: true,
+                yAxisID: 'y'
+              },
+              {
+                label: 'Score (pts)',
+                data: scoreSeries,
+                borderColor: '#2563eb',
+                backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                tension: 0.3,
+                fill: false,
+                yAxisID: 'y1'
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+              y: {
+                type: 'linear',
+                position: 'left',
+                min: 0,
+                max: 100,
+                title: { display: true, text: 'Accuracy %' }
+              },
+              y1: {
+                type: 'linear',
+                position: 'right',
+                beginAtZero: true,
+                grid: { drawOnChartArea: false },
+                title: { display: true, text: 'Score' }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    function renderMisclassifiedRanking(records) {
+      const container = document.getElementById('misclassified-ranking');
+      const errorCounts = {};
+
+      records.forEach(rec => {
+        (rec.attempts || []).forEach(att => {
+          if (!att.isCorrect) {
+            if (!errorCounts[att.name]) {
+              errorCounts[att.name] = {
+                name: att.name,
+                expected: att.expected,
+                count: 0
+              };
+            }
+            errorCounts[att.name].count++;
+          }
+        });
+      });
+
+      const sortedErrors = Object.values(errorCounts).sort((a, b) => b.count - a.count);
+
+      if (sortedErrors.length === 0) {
+        container.innerHTML =
+          '<p style="font-size: 0.84rem; color: var(--text-muted); padding: 12px 0;">No misclassified waste items recorded yet.</p>';
+        return;
+      }
+
+      const maxCount = sortedErrors[0].count;
+      container.innerHTML = sortedErrors
+        .slice(0, 8)
+        .map(item => {
+          const widthPct = Math.round((item.count / maxCount) * 100);
+          const streamBadge = item.expected === 'wet' ? 'Wet Waste' : 'Dry Waste';
+          return `
+            <div class="mis-item">
+              <div class="mis-item-top">
+                <span class="mis-item-name">
+                  <span class="cat-dot ${item.expected}"></span>
+                  <span>${item.name}</span>
+                  <span style="font-size: 0.72rem; color: var(--text-muted);">(${streamBadge})</span>
+                </span>
+                <span style="color: var(--red-600); font-weight: 700;">${item.count} error${item.count > 1 ? 's' : ''}</span>
+              </div>
+              <div class="mis-bar-bg">
+                <div class="mis-bar-fill" style="width: ${widthPct}%"></div>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+    }
+
+    function renderParticipantsTable(records) {
+      const searchQuery = document.getElementById('search-participant-input').value.trim().toLowerCase();
+      const statusFilter = document.getElementById('filter-status-select').value;
+      const diffFilter = document.getElementById('filter-difficulty-select').value;
+
+      const filtered = records.filter(rec => {
+        const matchesSearch = rec.participantId.toLowerCase().includes(searchQuery);
+        const matchesStatus = statusFilter === 'all' || rec.status === statusFilter;
+        const matchesDiff = diffFilter === 'all' || rec.difficulty === diffFilter;
+        return matchesSearch && matchesStatus && matchesDiff;
+      });
+
+      document.getElementById('table-row-count').textContent =
+        `Showing ${filtered.length} of ${records.length} records`;
+
+      const tbody = document.getElementById('participants-table-body');
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="8" style="text-align: center; padding: 24px; color: var(--text-muted);">
+              No participant records match the active filter criteria.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = filtered
+        .slice()
+        .reverse()
+        .map(rec => {
+          const statusClass = rec.status === 'Completed' ? 'badge-completed' : 'badge-partial';
+          return `
+            <tr>
+              <td><strong>${rec.participantId}</strong></td>
+              <td>${rec.timestamp}</td>
+              <td><span class="badge badge-diff">${rec.difficulty.toUpperCase()}</span></td>
+              <td><strong>${rec.score}</strong></td>
+              <td>${rec.accuracy}%</td>
+              <td><span class="badge ${statusClass}">${rec.status}</span></td>
+              <td>${formatDuration(rec.timeTakenSec)}</td>
+              <td>
+                <button type="button" class="action-icon-btn" onclick="inspectParticipant('${rec.id}')">Inspect</button>
+                <button type="button" class="action-icon-btn del" onclick="deleteParticipantRecord('${rec.id}')">Delete</button>
+              </td>
+            </tr>
+          `;
+        })
+        .join('');
+    }
+
+    function inspectParticipant(recordId) {
+      const records = getRecords();
+      const rec = records.find(r => r.id === recordId);
+      if (!rec) return;
+
+      document.getElementById('insp-title').textContent = `Participant Audit: ${rec.participantId}`;
+      document.getElementById('insp-subtitle').textContent =
+        `Recorded ${rec.timestamp} • Difficulty: ${rec.difficulty.toUpperCase()}`;
+
+      document.getElementById('insp-stats-row').innerHTML = `
+        <div class="summary-stat"><strong>${rec.score}</strong><span>Score</span></div>
+        <div class="summary-stat"><strong>${rec.accuracy}%</strong><span>Accuracy</span></div>
+        <div class="summary-stat"><strong>${rec.correctCount}/${rec.totalItems}</strong><span>Correct</span></div>
+        <div class="summary-stat"><strong>${formatDuration(rec.timeTakenSec)}</strong><span>Time Taken</span></div>
+      `;
+
+      const listEl = document.getElementById('insp-breakdown-list');
+      if (!rec.attempts || rec.attempts.length === 0) {
+        listEl.innerHTML = '<div class="breakdown-row">No granular item telemetry logged for this record.</div>';
+      } else {
+        listEl.innerHTML = rec.attempts
+          .map(att => {
+            const color = att.isCorrect ? 'var(--green-700)' : 'var(--red-600)';
+            const label = att.isCorrect
+              ? `Correct (${att.chosen.toUpperCase()})`
+              : `Chosen: ${att.chosen.toUpperCase()} | Expected: ${att.expected.toUpperCase()}`;
+            return `
+              <div class="breakdown-row">
+                <strong>${att.name}</strong>
+                <span style="color: ${color}; font-weight: 700;">${label}</span>
+              </div>
+            `;
+          })
+          .join('');
+      }
+
+      document.getElementById('inspector-modal').classList.remove('hidden');
+    }
+
+    function deleteParticipantRecord(recordId) {
+      const updated = getRecords().filter(r => r.id !== recordId);
+      saveRecords(updated);
+      renderAdminDashboard();
+    }
+
+    function confirmResetAllData() {
+      saveRecords([]);
+      closeModal('reset-confirm-modal');
+      assignNextParticipantId();
+      renderAdminDashboard();
+    }
+
+    function exportDashboardCSV() {
+      const records = getRecords();
+      const headers = [
+        'Participant ID',
+        'Date and Time',
+        'Difficulty',
+        'Score',
+        'Accuracy (%)',
+        'Correct Sorts',
+        'Incorrect Sorts',
+        'Wet Waste Sorted',
+        'Dry Waste Sorted',
+        'Completion Status',
+        'Time Taken (Seconds)'
+      ];
+
+      const rows = records.map(r => [
+        `"${r.participantId}"`,
+        `"${r.timestamp}"`,
+        `"${r.difficulty}"`,
+        r.score,
+        r.accuracy,
+        r.correctCount,
+        r.incorrectCount,
+        r.wetSorted,
+        r.drySorted,
+        `"${r.status}"`,
+        r.timeTakenSec
+      ]);
+
+      const csvContent = [headers.join(','), ...rows.map(e => e.join(','))].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `two_bins_one_bag_cp5_telemetry_${new Date().toISOString().slice(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
